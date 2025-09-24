@@ -1,6 +1,3 @@
-import os
-import faiss
-from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 import streamlit as st
 
@@ -10,79 +7,28 @@ import streamlit as st
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # --------------------------
-# Load Knowledge Base
-# --------------------------
-def load_knowledge_base(file_path="panchakarma_precautions.txt"):
-    """Load knowledge base from a text file."""
-    global knowledge_base
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    knowledge_base = [section.strip() for section in content.split("\n\n") if section.strip()]
-    return knowledge_base
-
-knowledge_base = load_knowledge_base()
-
-# --------------------------
-# RAG Setup
-# --------------------------
-model = SentenceTransformer('all-MiniLM-L6-v2')
-embeddings = model.encode(knowledge_base)
-dimension = embeddings.shape[1]
-index = faiss.IndexFlatL2(dimension)
-index.add(embeddings.astype('float32'))
-
-def retrieve_relevant_info(query, k=2):
-    """Retrieve top-k relevant sections from the knowledge base."""
-    if not knowledge_base:
-        return []
-    query_embedding = model.encode([query])
-    distances, indices = index.search(query_embedding.astype('float32'), k)
-    return [knowledge_base[i] for i in indices[0] if i < len(knowledge_base)]
-
-# --------------------------
-# Gemini Response Generator (Hybrid)
+# Gemini Response Generator
 # --------------------------
 def get_gemini_response(user_message, therapy_type=None):
     """
-    Generate response using Gemini:
-    - Use RAG if relevant info exists
-    - Otherwise, rely on Gemini general knowledge
+    Generate response using Gemini AI.
+    Fully AI-based; does NOT rely on any knowledge base.
     """
-    relevant_info = retrieve_relevant_info(user_message)
-    
-    if relevant_info:
-        context = "\n\n".join(relevant_info)
-        prompt = f"""
-You are an empathetic Ayurvedic assistant specializing in Panchakarma.
-Use the following context to answer the user's question accurately:
-
-Context:
-{context}
-
-User question: {user_message}
-
-Instructions:
-- Summarize key points in bullet points if relevant.
-- If therapy_type is given, focus on it.
-- Be clear, concise, and supportive.
-- If the question is outside the context, answer using your general Ayurvedic knowledge.
-- End with: "This is general guidance based on Ayurveda—consult your practitioner for personalized advice."
-"""
-    else:
-        # No relevant context found; rely entirely on Gemini
-        prompt = f"""
-You are an empathetic Ayurvedic assistant specializing in Panchakarma.
-User question: {user_message}
-
-Instructions:
-- Answer using your general Ayurvedic knowledge.
-- Summarize key points in bullet points if possible.
-- If therapy_type is given, focus on it.
-- End with: "This is general guidance based on Ayurveda—consult your practitioner for personalized advice."
+    # System prompt guiding the AI
+    system_prompt = """
+You are an empathetic Ayurvedic assistant specializing in Panchakarma and general Ayurveda.
+Answer the user's questions fully, clearly, and accurately.
+- Use bullet points where appropriate.
+- Focus on the therapy type if provided.
+- End with: "This is general guidance based on traditional Ayurveda—consult your qualified practitioner for personalized advice."
 """
 
+    # Append therapy type if given
     if therapy_type:
-        prompt += f"\n\nFocus on: {therapy_type}"
+        system_prompt += f"\n\nFocus on therapy type: {therapy_type}"
+
+    # Combine system prompt with user message
+    prompt = f"{system_prompt}\n\nUser question: {user_message}"
 
     try:
         gemini_model = genai.GenerativeModel("models/gemini-1.5-flash")
@@ -97,7 +43,7 @@ Instructions:
 # Optional Console Mode
 # --------------------------
 def run_console_chatbot():
-    print("=== Panchakarma Chatbot (Hybrid Gemini Console Mode) ===")
+    print("=== Panchakarma Chatbot (Gemini AI Console Mode) ===")
     therapy_type = input("Enter therapy type (optional, e.g., Virechana): ").strip()
     print(f"Therapy set to: {therapy_type or 'General'}\n")
 
