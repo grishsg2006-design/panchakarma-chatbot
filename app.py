@@ -1,8 +1,5 @@
 import streamlit as st
-from panchakarma_chatbot import get_gemini_response, load_knowledge_base
-
-# Load knowledge base on startup
-load_knowledge_base()
+from panchakarma_chatbot import get_gemini_response
 
 st.set_page_config(page_title="Panchakarma Chatbot", page_icon="🧘", layout="wide")
 
@@ -13,8 +10,6 @@ st.markdown("Ask any question about Panchakarma or Ayurvedic practices. Powered 
 with st.sidebar:
     st.header("Settings")
     therapy_type_input = st.text_input("Therapy Type (optional):", placeholder="Virechana, Basti, etc.")
-    if "therapy_type" not in st.session_state:
-        st.session_state.therapy_type = therapy_type_input
     if st.button("Set Therapy Type"):
         st.session_state.therapy_type = therapy_type_input
 
@@ -33,7 +28,7 @@ if prompt := st.chat_input("Ask your question:"):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Generate Gemini response
+    # Generate Gemini AI response
     with st.chat_message("assistant"):
         with st.spinner("Generating response..."):
             response = get_gemini_response(prompt, st.session_state.get("therapy_type"))
